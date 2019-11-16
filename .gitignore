@@ -106,3 +106,7 @@ venv.bak/
 # datafiles
 *.json
 *.jsonl
+*.pkl
+
+# other
+./testing.ipynb
