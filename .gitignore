@@ -89,7 +89,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
+dlt_venv/
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -107,6 +107,7 @@ venv.bak/
 *.json
 *.jsonl
 *.pkl
-
+#data
+datsets/
 # other
 ./testing.ipynb
