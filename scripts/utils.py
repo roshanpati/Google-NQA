@@ -3,8 +3,6 @@ import numpy as np
 from nltk import word_tokenize
 import torch
 
-np.random.seed(42)
-
 def in_memory_data_loader(filepath='../datasets/train_10k.json'):
     """
     Returns a list where each entry is a dict with keys - 
