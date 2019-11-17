@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import pickle
 
 class SimpleAttentionModel(nn.Module):
     """
@@ -8,9 +8,13 @@ class SimpleAttentionModel(nn.Module):
     The score value is between 0 and 1 and can be trained using BCELoss
 
     """
-    def __init__(self, embed_size, hidden_size):
+    def __init__(self, embed_size, hidden_size, pretrained_embeddings = None, vocab_size = 400000):
         super(SimpleAttentionModel, self).__init__()
-        self.model_embeddings = nn.Embedding(400000, 300) # TODO: Fill this with pretrined embeddings
+        self.model_embeddings = None
+        if pretrained_embeddings is not None:
+            self.model_embeddings = nn.Embedding.from_pretrained(pretrained_embeddings)
+        else:
+            self.model_embeddings = nn.Embedding(vocab_size, embed_size)
         self.questions_lstm = nn.LSTM(embed_size, hidden_size, batch_first=True, bidirectional=True)
         self.text_lstm = nn.LSTM(embed_size, hidden_size, batch_first=True, bidirectional=True)
         self.linear_layer = nn.Linear(2*hidden_size, 2*hidden_size)
@@ -25,9 +29,7 @@ class SimpleAttentionModel(nn.Module):
         _, (h_text, _) = self.text_lstm(self.model_embeddings(texts))
         h_questions = h_questions.transpose(0,1).reshape((batch_size, -1)) # batch_size, 2 * hidden_size
         h_text = h_text.transpose(0,1).reshape((batch_size, -1))
-        output = self.linear_layer(h_text).unsqueeze(1) # batch_size, 2 * hidden_size
-        # output.unsqueeze_(1) #batch_size, 1, 2*hidden_size
-        h_questions = h_questions.unsqueeze(2) #batch_size, 2*hidden_size, 1
-        output = torch.bmm(output, h_questions).squeeze(2)
-        output = self.sigmoid(output).squeeze(1)
+        output = self.linear_layer(h_text).unsqueeze(1) # batch_size, 1, 2 * hidden_size
+        h_questions = h_questions.unsqueeze(2) # batch_size, 2*hidden_size, 1
+        output = torch.bmm(output, h_questions).squeeze(2) # batch_size, 1
         return output

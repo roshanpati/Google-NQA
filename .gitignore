@@ -111,3 +111,4 @@ dlt_venv/
 datsets/
 # other
 ./testing.ipynb
+*.zip

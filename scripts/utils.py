@@ -1,8 +1,7 @@
 import json
 import numpy as np
 from nltk import word_tokenize
-
-np.random.seed(42)
+import torch
 
 def in_memory_data_loader(filepath='../datasets/train_10k.json'):
     """
@@ -41,20 +40,32 @@ def in_memory_data_loader(filepath='../datasets/train_10k.json'):
 
 def pad_sentence(sentence, pad_token, final_length):
     sentence = sentence[:final_length]
-    while (len(sentence) <= final_length):
+    while (len(sentence) < final_length):
         sentence.append(pad_token)
     return sentence
 
+def sentence_to_indices(sentence, tokens_to_index, unknown_token='@@UNK@@'):
+    index_of_unk = tokens_to_index[unknown_token]
+    return [tokens_to_index.get(word, index_of_unk) for word in sentence]
 
-def get_mini_batch(data, batch_size=32, pad_token='@@PAD@@'):
+def get_mini_batch(data, tokens_to_index, batch_size=32, pad=True, pad_token='@@PAD@@', unknown_token='@@UNK@@', device=torch.device('cpu')):
     """
     Padding questions and texts to have size 100
+    Returns torch tensor with indices
     """
     max_index = data.shape[0]
     indices = np.random.randint(0, max_index, size=batch_size)
-    questions = [pad_sentence(data[i]['question'], pad_token, 100) for i in indices]
-    texts = [pad_sentence(data[i]['text'], pad_token, 100) for i in indices]
-    labels = [data[i]['label'] for i in indices]
+    questions = []
+    texts = []
+    if pad == True:
+        questions = [sentence_to_indices(pad_sentence(data[i]['question'], pad_token, 100), tokens_to_index) for i in indices]
+        texts = [sentence_to_indices(pad_sentence(data[i]['text'], pad_token, 100), tokens_to_index) for i in indices]
+    else:
+        questions = [sentence_to_indices(data[i]['question'], tokens_to_index) for i in indices]
+        texts = [sentence_to_indices(data[i]['text'], tokens_to_index) for i in indices]
+    questions = torch.Tensor(questions).long().to(device)
+    texts = torch.Tensor(texts).long().to(device)
+    labels = torch.Tensor([data[i]['label'] for i in indices]).unsqueeze(1).float().to(device)
     return questions, texts, labels
 
 if __name__ == "__main__":
