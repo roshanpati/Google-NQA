@@ -110,3 +110,4 @@ venv.bak/
 
 # other
 ./testing.ipynb
+*.zip
