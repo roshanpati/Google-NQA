@@ -9,6 +9,7 @@ class DataLoader():
         self.dataset_size = 0
         self.train_size = 0
         self.test_size = 0
+
     def split_train_test(self,split):
         '''Reads the data line by line, converts into a json list and splits the data into train and test
          according to the split value and stores then in then same directory with suffix _train_{train_size}
