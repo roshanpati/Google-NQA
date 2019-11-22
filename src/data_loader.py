@@ -1,6 +1,7 @@
 import json
 import argparse
 import random
+import numpy as np
 
 class DataLoader():
     def __init__(self,filepath):
@@ -8,7 +9,9 @@ class DataLoader():
         self.orginal_file = None #In the original file each sample is a
         self.dataset_size = 0
         self.train_size = 0
+        self.dev_size = 0
         self.test_size = 0
+
     def split_train_test(self,split):
         '''Reads the data line by line, converts into a json list and splits the data into train and test
          according to the split value and stores then in then same directory with suffix _train_{train_size}
@@ -17,21 +20,30 @@ class DataLoader():
         with open(self.original_filepath) as json_file:
             content = json_file.readlines()
         self.dataset_size = len(content)
+        np.random.seed(838382)
         nqa = [json.loads(line) for line in content]
-        random.shuffle(nqa)
-        train_nqa = nqa[:int(self.dataset_size*self.split)]
-        test_nqa = nqa[int(self.dataset_size*self.split):]
+        print("Data loaded")
+        np.random.shuffle(nqa)
+        train_nqa = nqa[:int(self.dataset_size*self.split[0])]
+        dev_nqa = nqa[int(self.dataset_size*self.split[0]):int(self.dataset_size*(self.split[0]+self.split[1]))]
+        test_nqa = nqa[int(self.dataset_size*(self.split[0]+self.split[1])):]
         self.train_size = len(train_nqa)
+        self.dev_size = len(dev_nqa)
         self.test_size = len(test_nqa)
         self.train_path = '/'.join(self.original_filepath.split('/')[:-1])+"/"+self.original_filepath.split('/')[-1].split('.')[0]+"_train_{}.".format(self.train_size)+ \
+                         self.original_filepath.split('/')[-1].split('.')[1]
+        self.dev_path = '/'.join(self.original_filepath.split('/')[:-1])+"/"+self.original_filepath.split('/')[-1].split('.')[0]+"_dev_{}.".format(self.dev_size)+ \
                          self.original_filepath.split('/')[-1].split('.')[1]
         self.test_path = '/'.join(self.original_filepath.split('/')[:-1])+"/"+self.original_filepath.split('/')[-1].split('.')[0]+"_test_{}.".format(self.test_size)+ \
                          self.original_filepath.split('/')[-1].split('.')[1]
 
         with open(self.train_path,"w") as f:
             json.dump(train_nqa, f)
+        with open(self.dev_path,"w") as f:
+            json.dump(dev_nqa, f)
         with open(self.test_path,"w") as f:
             json.dump(test_nqa, f)
+        print("The Data of size {0} is split into 3 sets train,dev and test of size {1}, {2}, {3} respectively(according to split of {4}, {5} and {6} respectively) and stored in the folder of the main data file passed as filepath argument.".format(self.dataset_size,self.split[0],self.split[1],self.split[2],self.train_size,self.dev_size,self.test_size))
 
     def process_data(self,without_tags = True):
         self.read_and_make_single_json()
@@ -88,7 +100,8 @@ if __name__ == "__main__":
     print("Arguments passed are")
     print(args)
     filepath = args.filepath
-    split = float(args.split)
+    split = [float(item) for item in args.split.split(',')]
+    # print(split)
 
     # filepath = "../datasets/sampled_simplified_nq_train.json"
     dl = DataLoader(filepath)
