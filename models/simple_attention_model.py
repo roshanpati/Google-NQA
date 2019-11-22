@@ -20,7 +20,7 @@ class SimpleAttentionModel(nn.Module):
         self.linear_layer = nn.Linear(2*hidden_size, 2*hidden_size)
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, questions, texts):
+    def forward(self, questions, texts, sigmoid=False):
         """
         questions, texts - b * length * embed_size
         """
@@ -32,4 +32,6 @@ class SimpleAttentionModel(nn.Module):
         output = self.linear_layer(h_text).unsqueeze(1) # batch_size, 1, 2 * hidden_size
         h_questions = h_questions.unsqueeze(2) # batch_size, 2*hidden_size, 1
         output = torch.bmm(output, h_questions).squeeze(2) # batch_size, 1
+        if sigmoid == True:
+            output = self.sigmoid(output)
         return output
