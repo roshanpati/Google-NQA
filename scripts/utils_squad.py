@@ -113,15 +113,16 @@ def read_NQA_examples(input_file):
         else:
             is_impossible=False
 
-        doc_tokens = doc_text.split(' ')
+        long_answer_start = entry['annotations'][0]['long_answer']['start_token']
+        long_answer_end = entry['annotations'][0]['long_answer']['end_token']
+        long_answer = split_text[long_answer_start:long_answer_end]
 
         if not is_impossible:
             start_position = entry['annotations'][0]['short_answers'][0]['start_token']
             end_position = entry['annotations'][0]['short_answers'][0]['end_token']
             assert start_position >= entry['annotations'][0]['long_answer']['start_token'] \
                 and end_position <= entry['annotations'][0]['long_answer']['end_token'], qas_id
-            orig_answer_text = ' '.join([item for item in split_text[start_position:end_position]])
-
+            orig_answer_text = ' '.join(split_text[start_position:end_position])
         else:
             start_position = -1
             end_position = -1
@@ -130,10 +131,10 @@ def read_NQA_examples(input_file):
         example = NQAExample(
             qas_id=qas_id,
             question_text=question_text,
-            doc_tokens=doc_tokens,
+            doc_tokens=long_answer,
             orig_answer_text=orig_answer_text,
-            start_position=start_position,
-            end_position=end_position,
+            start_position=start_position - long_answer_start,
+            end_position=end_position - long_answer_start,
             is_impossible=is_impossible)
         examples.append(example)
 
@@ -163,7 +164,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
     # f = np.zeros((max_N, max_M), dtype=np.float32)
 
     features = []
-    for (example_index, example) in enumerate(examples):
+    for (example_index, example) in enumerate(tqdm(examples)):
 
         # if example_index % 100 == 0:
         #     logger.info('Converting %s/%s pos %s neg %s', example_index, len(examples), cnt_pos, cnt_neg)

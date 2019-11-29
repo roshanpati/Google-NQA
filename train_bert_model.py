@@ -79,7 +79,8 @@ if __name__ == "__main__":
     else:
         assert False, 'Unknown model'
     
-    model.load_state_dict(torch.load(args.start_path))
+    if args.start_path != None:
+        model.load_state_dict(torch.load(args.start_path))
     model.train()
     print('Loading dataset')
     dataset = load_and_cache_examples(args.train_path, args.distil, tokenizer)
