@@ -5,7 +5,6 @@ import argparse
 from tqdm import tqdm
 from models.BertAnswerClassification import BertAnswerClassification
 from torch.utils.tensorboard import SummaryWriter
-from scripts.utils_squad_evaluate import *
 from scripts.utils_squad import *
 from transformers import *
 from torch.utils.data import *
@@ -41,6 +40,9 @@ parser.add_argument(
 parser.add_argument(
     "--distil", type=bool, default=False, help="Use distil bert"
 )
+parser.add_argument(
+    "--start-path", default=None, help="Path to saved model state"
+)
 
 # Reproducibility
 np.random.seed(42)
@@ -73,9 +75,11 @@ if __name__ == "__main__":
             model = DistilBertForQuestionAnswering.from_pretrained('distilbert-base-uncased')
         else:
             model = BertForQuestionAnswering.from_pretrained('bert-base-uncased')
+            # model = BertForQuestionAnswering.from_pretrained('bert-base-uncased-whole-word-masking-finetuned-squad')
     else:
         assert False, 'Unknown model'
     
+    model.load_state_dict(torch.load(args.start_path))
     model.train()
     print('Loading dataset')
     dataset = load_and_cache_examples(args.train_path, args.distil, tokenizer)
@@ -83,7 +87,9 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     
     # By default only on 10% of data
+    print("Dataset length", len(dataset))
     indices = list(np.random.choice(len(dataset), size=(len(dataset) * args.train_percentage) // 100, replace=False))
+    print("Indices length", len(indices))
     sampler = SubsetRandomSampler(indices)
     train_dataloader = DataLoader(dataset, sampler=sampler, batch_size=args.batch_size)
 
@@ -96,7 +102,7 @@ if __name__ == "__main__":
         save_checkpoint(args, epoch_number)
         iterator = tqdm(iter(train_dataloader))
         for batch_num, batch in tqdm(enumerate(iterator)):
-            output = model(batch[0], attention_mask=batch[1], start_positions=batch[3], end_positions=batch[4])
+            output = model(batch[0], attention_mask=batch[1], start_positions=batch[2], end_positions=batch[3])
             loss = output[0]
             writer.add_scalar(loss_scalar, loss, batch_num)
             loss.backward()
