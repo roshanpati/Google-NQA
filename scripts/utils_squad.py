@@ -1010,8 +1010,7 @@ def load_and_cache_examples(filename, distil, tokenizer, evaluate=False):
     print("Input ids length", all_input_ids.shape)
     if evaluate:
         all_example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
-        dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids,
-                                all_example_index, all_cls_index, all_p_mask)
+        dataset = TensorDataset(all_input_ids, all_input_mask, all_example_index)
     else:
         all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
         all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
