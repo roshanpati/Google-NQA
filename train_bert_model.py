@@ -43,11 +43,16 @@ parser.add_argument(
 parser.add_argument(
     "--start-path", default=None, help="Path to saved model state"
 )
+parser.add_argument(
+    "--seed", type=int, default=42, help="Seed"
+)
+
+args = parser.parse_args()
 
 # Reproducibility
-np.random.seed(42)
-torch.manual_seed(42)
-torch.cuda.manual_seed_all(42)
+np.random.seed(args.seed)
+torch.manual_seed(args.seed)
+torch.cuda.manual_seed_all(args.seed)
 torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
 
@@ -55,32 +60,26 @@ writer = SummaryWriter()
 
 def save_checkpoint(args, checkpoint_number):
     output_file_name = args.out_path + args.model + "_" + str(checkpoint_number) + "_" + str(args.train_percentage)
-    if args.distil == True:
-        output_file_name += "_distil"
     torch.save(model.state_dict(), output_file_name + '.pth')
 
 if __name__ == "__main__":
     args = parser.parse_args()
     print(args)
 
-    if args.distil == True:
-        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-    else:
-        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
     if args.model == 'BertAnswerClassification': # Classification case
         model = BertAnswerClassification(distil = False) # Distil version not available yet
-    elif args.model == 'BertQABase': # Question answering case
-        if args.distil == True:
-            model = DistilBertForQuestionAnswering.from_pretrained('distilbert-base-uncased')
-        else:
-            model = BertForQuestionAnswering.from_pretrained('bert-base-uncased')
-            # model = BertForQuestionAnswering.from_pretrained('bert-base-uncased-whole-word-masking-finetuned-squad')
+    elif args.model == 'DistilBertQABase': # Question answering case
+        model = DistilBertForQuestionAnswering.from_pretrained('distilbert-base-uncased')
+    elif args.model == 'BertQABase':
+        model = BertForQuestionAnswering.from_pretrained('bert-base-uncased')
     else:
         assert False, 'Unknown model'
     
     if args.start_path != None:
         model.load_state_dict(torch.load(args.start_path))
+    
     model.train()
     print('Loading dataset')
     dataset = load_and_cache_examples(args.train_path, args.distil, tokenizer)
@@ -95,9 +94,11 @@ if __name__ == "__main__":
     train_dataloader = DataLoader(dataset, sampler=sampler, batch_size=args.batch_size)
 
     if args.model == 'BertQABase':
-        loss_scalar = 'Bert base loss' if args.distil is False else 'Distil bert base loss'
+        loss_scalar = 'Bert base loss'
     elif args.model == 'BertAnswerClassification':
         loss_scalar = 'Bert classification loss' if args.distil is False else 'Distil bert classification loss'
+    elif args.model == 'DistilBertQABase':
+        loss_scalar = 'Distil bert loss'
 
     for epoch_number in range(args.num_epochs):
         save_checkpoint(args, epoch_number)
