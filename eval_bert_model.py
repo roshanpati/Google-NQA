@@ -17,7 +17,7 @@ else:
 
 parser = argparse.ArgumentParser("SQUAD parser")
 parser.add_argument(
-    "--model", default=None, help="Model"
+    "--models", action='append', default=None, help="Model"
 )
 parser.add_argument(
     "--file-path", default='data/dev-v2.0.json', help="Test/Dev data"
@@ -29,7 +29,7 @@ parser.add_argument(
     "--batch-size", type=int, default=3, help="Number of epochs"
 )
 parser.add_argument(
-    "--model-path", default=None, help="Path to saved model state"
+    "--model-paths", action='append', default=None, help="Path to saved model state"
 )
 
 # Reproducibility
@@ -43,26 +43,26 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args)
 
-    if args.model == 'DistilBertQABase':
-        distil = True
-        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-    else:
-        distil = False
-        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
-    if args.model == 'BertAnswerClassification': # Classification case
-        model = BertAnswerClassification(distil = False) # Distil version not available yet
-    elif args.model == 'BertQABase': # Question answering case
-        model = BertForQuestionAnswering.from_pretrained('bert-base-uncased')
-    elif args.model == 'DistilBertQABase':
-        model = DistilBertForQuestionAnswering.from_pretrained('distilbert-base-uncased')
-    else:
-        assert False, 'Unknown model'
+    models = []
+    for i in range(len(args.models)):
+        if args.models[i] == 'BertAnswerClassification': # Classification case
+            model = BertAnswerClassification(distil = False) # Distil version not available yet
+        elif args.models[i] == 'BertQABase': # Question answering case
+            model = BertForQuestionAnswering.from_pretrained('bert-base-uncased')
+        elif args.models[i] == 'DistilBertQABase':
+            model = DistilBertForQuestionAnswering.from_pretrained('distilbert-base-uncased')
+        else:
+            assert False, 'Unknown model'
+        models.append(model)
 
-    model.load_state_dict(torch.load(args.model_path))
-    model.eval()
+    for i in range(len(args.models)):
+        models[i].load_state_dict(torch.load(args.model_paths[i]))
+        model.eval()
+    
     print('Loading dataset')
-    dataset, examples, features = load_and_cache_examples(args.file_path, distil, tokenizer, evaluate=True)
+    dataset, examples, features = load_and_cache_examples(args.file_path, False, tokenizer, evaluate=True)
     print('Finished loading dataset')
 
     sampler = SequentialSampler(dataset)
@@ -72,12 +72,22 @@ if __name__ == "__main__":
     iterator = tqdm(iter(train_dataloader))
     for batch_num, batch in tqdm(enumerate(iterator)):
         with torch.no_grad():
-            output = model(batch[0], attention_mask=batch[1])
+            outputs = []
+            for model in models:
+                outputs.append(model(batch[0], attention_mask=batch[1]))
 
         example_indices = batch[2]
         for i, example_index in enumerate(example_indices):
             unique_index = int(features[example_index.item()].unique_id)
-            result_here = RawResult(unique_id=unique_index, start_logits=output[0][i], end_logits=output[1][i])
+
+            start_logits = torch.zeros_like(outputs[0][0][i])
+            end_logits = torch.zeros_like(outputs[0][1][i])
+
+            for output in outputs:
+                start_logits += output[0][i]
+                end_logits += output[1][i]
+            
+            result_here = RawResult(unique_id=unique_index, start_logits=start_logits, end_logits=end_logits)
             results.append(result_here)
     
     prediction_file = os.path.join(args.out_path, "predictions.json")
